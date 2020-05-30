@@ -399,6 +399,10 @@ ramips_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0:lan:1" "1:lan:2" "2:lan:3" "3:lan:4" "6@eth0"
 		;;
+	ea8100)
+		ucidef_add_switch "switch0" \
+			"0:wan" "1:lan:1" "2:lan:2" "3:lan:3" "4:lan:4" "6@eth0"
+		;;
 	rt-n56u)
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "8@eth0"

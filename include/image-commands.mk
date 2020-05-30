@@ -350,6 +350,15 @@ define Build/tplink-v2-image
 	rm -rf $@.new
 endef
 
+define Build/linksys-sig
+	echo -n ".LINKSYS.00000007000000         " > $@.new
+	printf "%08X" `cksum < "$@" | cut -d' ' -f1` >> $@.new
+	echo -n "0       0000000000000000" >> $@.new
+	head /dev/zero -c 192 >> $@.new
+	cat $@.new >> $@
+	rm -rf $@.new
+endef
+
 json_quote=$(subst ','\'',$(subst ",\",$(1)))
 #")')
 metadata_devices=$(if $(1),$(subst "$(space)","$(comma)",$(strip $(foreach v,$(1),"$(call json_quote,$(v))"))))
