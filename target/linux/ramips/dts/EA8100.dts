@@ -1,0 +1,149 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	compatible = "linksys,ea8100", "mediatek,mt7621-soc";
+	model = "Linksys EA8100";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "ALL";
+		reg = <0x00000 0x7f80000>;
+		read-only;
+	};
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x00000 0x80000>;
+		read-only;
+	};
+
+	uboot_env: partition@80000 {
+		label = "uboot_env";
+		reg = <0x80000 0x40000>;
+		read-only;
+		mtdsplit-uboot-boot_part-var = "boot_part";
+	};
+
+	factory: partition@c0000 {
+		label = "factory";
+		reg = <0xc0000 0x40000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "s_env";
+		reg = <0x100000 0x40000>;
+		read-only;
+	};
+
+	devinfo: partition@140000 {
+		label = "devinfo";
+		reg = <0x140000 0x40000>;
+		read-only;
+	};
+
+	partition@180000 {
+		label = "firmware";
+		reg = <0x180000 0x2800000>;
+		mtdsplit-choose-firmware;
+		mtdsplit-choose-firmware-uboot-env-part = <&uboot_env 0x4 0x1000>;
+		mtdsplit-choose-firmware-uboot-env-val = "1";
+	};
+
+/*
+	partition@180000 {
+		label = "kernel";
+		reg = <0x180000 0x2800000>;
+		read-only;
+	};
+
+	partition@580000 {
+		label = "rootfs";
+		reg = <0x580000 0x2400000>;
+		read-only;
+	};
+ */
+
+	partition@2980000 {
+		label = "firmware2";
+		reg = <0x2980000 0x2800000>;
+		mtdsplit-choose-firmware;
+		mtdsplit-choose-firmware-uboot-env-part = <&uboot_env 0x4 0x1000>;
+		mtdsplit-choose-firmware-uboot-env-val = "2";
+	};
+
+/*
+	partition@2980000 {
+		label = "alt_kernel";
+		reg = <0x2980000 0x2800000>;
+	};
+
+	partition@2d80000 {
+		label = "alt_rootfs";
+		reg = <0x2d80000 0x2400000>;
+	};
+ */
+
+	partition@5180000 {
+		label = "sysdiag";
+		reg = <0x5180000 0x100000>;
+		read-only;
+	};
+
+	partition@5280000 {
+		label = "syscfg";
+		reg = <0x5280000 0x2d00000>;
+		read-only;
+	};
+};
+
+/*
+&sdhci {
+	status = "okay";
+};
+ */
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uart2", "uart3", "rgmii2", "sdhci";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+};
+
+&pcie0 {
+	mt76@0,0 {
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x0000>;
+	};
+};
+
+&pcie1 {
+	mt76@0,0 {
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x8000>;
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&devinfo 0x0000>;
+	mtd-mac-address-propname = "hw_mac_addr";
+};

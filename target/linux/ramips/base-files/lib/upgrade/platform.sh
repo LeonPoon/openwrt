@@ -55,6 +55,14 @@ platform_do_upgrade() {
 		}
 		default_do_upgrade "$1"
 		;;
+	ea8100)
+		MTD_ARGS="-e $PART_NAME"
+		default_do_upgrade "$1"
+		PART_NAME=firmware2
+		MTD_ARGS="-e $PART_NAME"
+		default_do_upgrade "$1"
+		PART_NAME=firmware
+		;;
 	hc5962|\
 	r6220|\
 	netgear,r6350|\
