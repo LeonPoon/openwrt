@@ -455,6 +455,21 @@ define Device/re6500
 endef
 TARGET_DEVICES += re6500
 
+define Device/ea8100
+  DTS := EA8100
+  DEVICE_TITLE := Linksys EA8100
+  PAGESIZE := 2048
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  FILESYSTEMS := squashfs
+  DEVICE_PACKAGES := kmod-usb3 uboot-envtools kmod-usb-storage kmod-mt7615e wpad-basic
+  IMAGE_SIZE := 4096k
+  IMAGES += factory.img
+  IMAGE/sysupgrade.bin := append-kernel | pad-to $$$$(BLOCKSIZE) | append-ubi | append-metadata
+  IMAGE/factory.img := append-kernel | pad-to $$$$(BLOCKSIZE) | append-ubi | linksys-sig
+endef
+TARGET_DEVICES += ea8100
+
 define Device/sap-g3200u3
   DTS := SAP-G3200U3
   DEVICE_TITLE := STORYLiNK SAP-G3200U3

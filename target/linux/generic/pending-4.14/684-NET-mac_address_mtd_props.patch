@@ -1,0 +1,171 @@
+From: Leon Poon <szeleung.poon@gmail.com>
+Subject: NET: read mtd data for value of property to use as mac addr
+
+MAC addresses for linksys are stored in mtd in text format as key=value
+pairs separated by newlines..
+
+Signed-off-by: Leon Poon <szeleung.poon@gmail.com>
+
+--- a/drivers/of/of_net.c
++++ b/drivers/of/of_net.c
+@@ -48,20 +48,116 @@ static void *of_get_mac_addr(struct devi
+ 	return NULL;
+ }
+ 
++#ifdef CONFIG_MTD
++static void* mtd_read_prop_mac(struct device_node *mtd_np, struct mtd_info *mtd, loff_t off, const char *propname, u8 *mac) {
++	size_t len_propmatch = strlen(propname) + 2 /* \n and = */;
++	char propmatch[len_propmatch + 1];
++	size_t retlen, read, mtd_max, buf_max =
++			len_propmatch
++			+ 17 /* mac addr in str */
++			+ 1 /* \r or \n */;
++	char cbuf[buf_max + 1];
++	loff_t off_buf = 0;
++	const __be32 *list;
++	int size = 0;
++	u8 val_byte, mac_byte = 0;
++	char *found = propmatch, *val;
++
++	if (!(list = of_get_property(mtd_np, "reg", &size)) || !(mtd_max = be32_to_cpup(++list)))
++		return NULL;
++
++	*(found++) = '\n';
++	found = strcpy(found, propname) + strlen(propname);
++	*(found++) = '=';
++	*(found++) = '\0';
++
++	pr_notice("%s: find prop \"%s\" in %s(max 0x%zx) from 0x%llx\n", __func__, propname, mtd->name, mtd_max, off);
++
++	cbuf[off_buf++] = '\n';
++	cbuf[off_buf] = '\0';
++
++	while ((read = min(buf_max - off_buf, mtd_max - off))) {
++		if (mtd_read(mtd, off, read, &retlen, cbuf + off_buf)) {
++			pr_err("%s: mtd_read(%s, offset=%llu, %zu) failed\n", __func__, mtd->name, off, read);
++			return NULL;
++		}
++		cbuf[off_buf += retlen] = '\0';
++
++		if ((found = strchr(cbuf, 0xff))) {
++			off = mtd_max;
++			*found = '\0';
++		} else {
++			off += retlen;
++		}
++		pr_debug("%s: mtd_read succeed: now off=%llu, off_buf=%llu, data=[%s]", __func__, off, off_buf, cbuf);
++
++		if ((found = strstr(cbuf, propmatch)) && (val = strpbrk(found + 1, "\r\n"))) {
++			*val = '\0';
++			pr_notice("%s: %s\n", __func__, found + 1);
++			val = found + len_propmatch;
++
++			for (size = 0; size < ETH_ALEN; val_byte = 0) {
++
++				val_byte = *(val++);
++				if (val_byte >= 'A' && val_byte <= 'F')
++					val_byte = val_byte - 'A' + 10;
++				else if (val_byte >= 'a' && val_byte <= 'f')
++					val_byte = val_byte - 'a' + 10;
++				else if (val_byte >= '0' && val_byte <= '9')
++					val_byte = val_byte - '0';
++				else
++					return NULL;
++				mac_byte = (mac_byte << 4) + val_byte;
++
++				val_byte = *(val++);
++				if (val_byte >= 'A' && val_byte <= 'F')
++					val_byte = val_byte - 'A' + 10;
++				else if (val_byte >= 'a' && val_byte <= 'f')
++					val_byte = val_byte - 'a' + 10;
++				else if (val_byte >= '0' && val_byte <= '9')
++					val_byte = val_byte - '0';
++				else
++					return NULL;
++				mac_byte = (mac_byte << 4) + val_byte;
++
++				mac[size++] = mac_byte;
++				if (*(val++) != (size == ETH_ALEN? '\0': ':'))
++					return NULL;
++			}
++			return mac;
++		}
++
++		if ((found = strrchr(cbuf, '\n'))) {
++			if (found == cbuf || strncmp(propmatch, found, min(len_propmatch, strlen(found)))) {
++				cbuf[off_buf = 0] = '\0';
++			} else {
++				off_buf = strlen(found);
++				val = cbuf;
++				do {
++					*(val++) = *found;
++				} while (*(found++));
++			}
++		} else {
++			cbuf[off_buf = 0] = '\0';
++		}
++	}
++	return NULL;
++}
++
+ static const void *of_get_mac_address_mtd(struct device_node *np)
+ {
+-#ifdef CONFIG_MTD
+ 	struct device_node *mtd_np = NULL;
+ 	struct property *prop;
+ 	size_t retlen;
+ 	int size, ret;
+ 	struct mtd_info *mtd;
+-	const char *part;
++	const char *part, *propname;
+ 	const __be32 *list;
+ 	phandle phandle;
+ 	u32 mac_inc = 0;
++	loff_t off;
+ 	u8 mac[ETH_ALEN];
+-	void *addr;
++	void *addr = mac;
+ 	u32 inc_idx;
+ 
+ 	list = of_get_property(np, "mtd-mac-address", &size);
+@@ -83,8 +179,15 @@ static const void *of_get_mac_address_mt
+ 	if (IS_ERR(mtd))
+ 		return NULL;
+ 
+-	ret = mtd_read(mtd, be32_to_cpup(list), 6, &retlen, mac);
++	ret = mtd_read(mtd, off = be32_to_cpup(list), 6, &retlen, mac);
++
++	propname = of_get_property(np, "mtd-mac-address-propname", NULL);
++	if (propname)
++		addr = mtd_read_prop_mac(mtd_np, mtd, off, propname, mac);
++
+ 	put_mtd_device(mtd);
++	if (!addr)
++		return NULL;
+ 
+ 	if (of_property_read_u32(np, "mtd-mac-address-increment-byte", &inc_idx))
+ 		inc_idx = 5;
+@@ -117,9 +220,9 @@ static const void *of_get_mac_address_mt
+ free:
+ 	kfree(prop->value);
+ 	kfree(prop);
+-#endif
+ 	return NULL;
+ }
++#endif
+ 
+ /**
+  * Search the device tree for the best MAC address to use.  'mac-address' is
+@@ -146,10 +249,12 @@ const void *of_get_mac_address(struct de
+ {
+ 	const void *addr;
+ 
++#ifdef CONFIG_MTD
+ 	addr = of_get_mac_address_mtd(np);
+ 	if (addr)
+ 		return addr;
+ 
++#endif
+ 	addr = of_get_mac_addr(np, "mac-address");
+ 	if (addr)
+ 		return addr;

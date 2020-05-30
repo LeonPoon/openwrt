@@ -3297,13 +3297,13 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
 +			printk("compare signature failed %x\n", page);
 +			return -1;
 +		}
-+		if (mtk_nand_exec_read_page(mtd, page, mtd->writesize, chip->buffers->databuf, chip->oob_poi))
++		if (mtk_nand_exec_read_page(mtd, chip->pagebuf = page, mtd->writesize, chip->buffers->databuf, chip->oob_poi))
 +		{
 +			printk("Signature matched and data read!\n");
 +			memcpy(fact_bbt, chip->buffers->databuf, (bbt_size <= mtd->writesize)? bbt_size:mtd->writesize);
 +			return 0;
-+		}
-+
++		} else
++			chip->pagebuf = -1;
 +	}
 +	printk("failed at page %x\n", page);
 +	return -1;
