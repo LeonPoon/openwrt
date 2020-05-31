@@ -1,0 +1,18 @@
+pipeline {
+    agent { label 'jenkins-slave1' }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building..'
+		sh 'jenkins-scripts/build.sh ea8100'
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'bin/targets/*/*/sha256sums, bin/targets/*/*/*.bin, bin/targets/*/*/*.img, bin/targets/*/*/*.buildinfo, bin/targets/*/*/*.manifest', fingerprint: true
+        }
+    }
+}
