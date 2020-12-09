@@ -8,13 +8,12 @@ WORKSPACE="$(cd "$PREFIX/.." && pwd)"
 machine="$1"
 shift
 
-tee .config < "$PREFIX/common-pre.config"
-tee -a .config < "$PREFIX/$machine.config"
-tee -a .config < "$PREFIX/common-post.config"
-
 "$WORKSPACE/scripts/feeds" update -a
 "$WORKSPACE/scripts/feeds" install -a
 
+tee .config < "$PREFIX/common-pre.config"
+tee -a .config < "$PREFIX/$machine.config"
+tee -a .config < "$PREFIX/common-post.config"
 make defconfig
 
 "$WORKSPACE/scripts/diffconfig.sh"
