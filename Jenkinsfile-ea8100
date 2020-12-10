@@ -12,7 +12,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'bin/targets/*/*/sha256sums, bin/targets/*/*/*.bin, bin/targets/*/*/*.img, bin/targets/*/*/*.buildinfo, bin/targets/*/*/*.manifest', fingerprint: true
+            archiveArtifacts artifacts: 'bin/**/*', fingerprint: true
         }
     }
 }
